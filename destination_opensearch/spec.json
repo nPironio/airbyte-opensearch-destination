@@ -1,0 +1,41 @@
+{
+  "documentationUrl": "https://docs.airbyte.com/integrations/destinations/opensearch",
+  "supported_destination_sync_modes": [
+    "overwrite"
+  ],
+  "supportsIncremental": true,
+  "connectionSpecification": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Destination Opensearch",
+    "type": "object",
+    "required": ["host", "port", "username", "password"],
+    "additionalProperties": true,
+    "properties": {
+      "host": {
+        "type": "string",
+        "description": "Opensearch host",
+        "order": 0
+      },
+      "port": {
+        "type": "string",
+        "description": "Opensearch port",
+        "order": 1
+      },
+      "username": {
+        "type": "string",
+        "description": "Username",
+        "order": 2
+      },
+      "password": {
+        "type": "string",
+        "description": "Password",
+        "order": 3
+      },
+      "index": {
+        "type": "string",
+        "description": "Index name",
+        "order": 4
+      }
+    }
+  }
+}
