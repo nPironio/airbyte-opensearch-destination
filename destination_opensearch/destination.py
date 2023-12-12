@@ -16,14 +16,25 @@ from opensearchpy import OpenSearch
 logger = getLogger('airbyte')
 
 
-def _flush_buffer(buffer, client):
-    for stream_name, records in buffer.items():
-        formatted_data = "\n".join(["""{ "index": {} }\n """ + record for record in buffer[stream_name]])+'\n\n'
-        client.bulk(body=formatted_data, index=f"airbyte_raw_{stream_name.lower()}", headers={"Accept-Encoding": "identity"})
-        logger.info(f"Wrote {len(buffer[stream_name])} records for {stream_name=}")
-
-
 class DestinationOpensearch(Destination):
+    def __init__(self, *args, **kwargs):
+        self.buffer: None | defaultdict  = None
+        self.client: None | OpenSearch = None
+
+        super(DestinationOpensearch, self).__init__(*args, **kwargs)
+
+    def _flush_buffer(self):
+        for stream_name, records in self.buffer.items():
+            formatted_data = "\n".join(["""{ "index": {} }\n """ + record for record in self.buffer[stream_name]]) + '\n\n'
+            self.client.bulk(
+                body=formatted_data,
+                index=f"airbyte_raw_{stream_name.lower()}",
+                headers={"Accept-Encoding": "identity"}
+            )
+            logger.info(f"Wrote {len(self.buffer[stream_name])} records for {stream_name=}")
+
+        self.buffer = defaultdict(list)
+
     def write(
             self, config: Mapping[str, Any], configured_catalog: ConfiguredAirbyteCatalog, input_messages: Iterable[AirbyteMessage]
     ) -> Iterable[AirbyteMessage]:
@@ -46,7 +57,7 @@ class DestinationOpensearch(Destination):
         streams = {s.stream.name for s in configured_catalog.streams}
         logger.info(f"Starting write to OpenSearch with {len(streams)} streams")
 
-        client = OpenSearch(
+        self.client = OpenSearch(
             hosts=[{'host': config['host'], 'port': config['port']}],
             http_compress=False,
             http_auth=(config['username'], config['password']),
@@ -59,13 +70,13 @@ class DestinationOpensearch(Destination):
             name = configured_stream.stream.name
             index_name = f"airbyte_raw_{name.lower()}"
             if configured_stream.destination_sync_mode == DestinationSyncMode.overwrite:
-                if client.indices.exists(index_name):
+                if self.client.indices.exists(index_name):
                     # delete the pre-existing index
                     logger.info(f"Dropping index for overwrite: {index_name}")
-                    client.indices.delete(index_name)
-                client.indices.create(index_name)
+                    self.client.indices.delete(index_name)
+                self.client.indices.create(index_name)
 
-        buffer = defaultdict(list)
+        self.buffer = defaultdict(list)
         for message in input_messages:
             if message.type == Type.RECORD:
                 data = message.record.data
@@ -74,18 +85,19 @@ class DestinationOpensearch(Destination):
                     logger.debug(f"Stream {stream} was not present in configured streams, skipping")
                     continue
                 # add to buffer
-                buffer[stream].append(json.dumps(data))
+                self.buffer[stream].append(json.dumps(data))
+                if sum((len(records) for records in self.buffer.values())) >= 5000:
+                    self._flush_buffer()
 
             elif message.type == Type.STATE:
                 logger.info(f"flushing buffer for state: {message}")
-                _flush_buffer(buffer, client)
-                buffer = defaultdict(list)
+                self._flush_buffer()
                 yield message
 
-            # flush any remaining messages
-        _flush_buffer(buffer, client)
+        # flush any remaining messages
+        self._flush_buffer()
 
-        client.close()
+        self.client.close()
 
     def check(self, logger: AirbyteLogger, config: Mapping[str, Any]) -> AirbyteConnectionStatus:
         """
