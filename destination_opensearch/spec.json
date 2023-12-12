@@ -45,8 +45,7 @@
       "Index config": {
         "type": "string",
         "description": "Index creation request body",
-        "$ref": "https://opensearch.org/docs/latest/api-reference/index-apis/create-index/",
-        "multiline": true,
+        "multiline": false,
         "order": 1,
         "group": "ix"
       }

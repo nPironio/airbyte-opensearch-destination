@@ -3,5 +3,6 @@
   "port": "9200",
   "username": "admin",
   "password": "admin",
-  "Index name prefix": "test"
+  "Index name prefix": "test",
+  "Index config": "{\n  \"settings\": {\n    \"analysis\": {\n      \"analyzer\": {\n        \"default\": {\n          \"type\": \"simple\"\n        }\n      }\n    }\n  }\n}"
 }
