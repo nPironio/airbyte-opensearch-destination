@@ -18,8 +18,9 @@ logger = getLogger('airbyte')
 
 class DestinationOpensearch(Destination):
     def __init__(self, *args, **kwargs):
-        self.buffer: None | defaultdict  = None
+        self.buffer: None | defaultdict = None
         self.client: None | OpenSearch = None
+        self.index_prefix: None | str = None
 
         super(DestinationOpensearch, self).__init__(*args, **kwargs)
 
@@ -28,7 +29,7 @@ class DestinationOpensearch(Destination):
             formatted_data = "\n".join(["""{ "index": {} }\n """ + record for record in self.buffer[stream_name]]) + '\n\n'
             self.client.bulk(
                 body=formatted_data,
-                index=f"airbyte_raw_{stream_name.lower()}",
+                index=self._get_index_name(stream_name),
                 headers={"Accept-Encoding": "identity"}
             )
             logger.info(f"Wrote {len(self.buffer[stream_name])} records for {stream_name=}")
@@ -66,15 +67,15 @@ class DestinationOpensearch(Destination):
             ssl_assert_hostname=False,
             ssl_show_warn=False,
         )
+        self.index_prefix = config.get("Index name prefix", "airbyte_raw")
         for configured_stream in configured_catalog.streams:
-            name = configured_stream.stream.name
-            index_name = f"airbyte_raw_{name.lower()}"
+            stream_name = configured_stream.stream.name
+            index_name = self._get_index_name(stream_name)
             if configured_stream.destination_sync_mode == DestinationSyncMode.overwrite:
                 if self.client.indices.exists(index_name):
-                    # delete the pre-existing index
                     logger.info(f"Dropping index for overwrite: {index_name}")
                     self.client.indices.delete(index_name)
-                self.client.indices.create(index_name)
+                self.client.indices.create(index_name, body=config.get('Index config', ''))
 
         self.buffer = defaultdict(list)
         for message in input_messages:
@@ -127,3 +128,6 @@ class DestinationOpensearch(Destination):
             return AirbyteConnectionStatus(status=Status.SUCCEEDED)
         except Exception as e:
             return AirbyteConnectionStatus(status=Status.FAILED, message=f"An exception occurred: {repr(e)}")
+
+    def _get_index_name(self, stream_name):
+        return f"{self.index_prefix}_{stream_name}".lower()

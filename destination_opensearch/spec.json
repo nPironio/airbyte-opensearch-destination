@@ -14,28 +14,56 @@
       "host": {
         "type": "string",
         "description": "Opensearch host",
+        "group": "srv",
         "order": 0
       },
       "port": {
         "type": "string",
         "description": "Opensearch port",
+        "group": "srv",
         "order": 1
       },
       "username": {
         "type": "string",
         "description": "Username",
+        "group": "auth",
         "order": 2
       },
       "password": {
         "type": "string",
         "description": "Password",
+        "airbyte_secret": true,
+        "group": "auth",
         "order": 3
       },
-      "index": {
+      "Index name prefix": {
         "type": "string",
         "description": "Index name",
-        "order": 4
+        "order": 0,
+        "group": "ix"
+      },
+      "Index config": {
+        "type": "string",
+        "description": "Index creation request body",
+        "$ref": "https://opensearch.org/docs/latest/api-reference/index-apis/create-index/",
+        "multiline": true,
+        "order": 1,
+        "group": "ix"
       }
-    }
+    },
+    "groups": [
+      {
+        "id": "srv",
+        "title": "Server"
+      },
+      {
+        "id": "auth",
+        "title": "Authentication"
+      },
+      {
+        "id": "ix",
+        "title": "index"
+      }
+    ]
   }
 }

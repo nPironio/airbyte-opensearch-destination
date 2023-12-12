@@ -2,5 +2,6 @@
   "host": "10.109.41.116",
   "port": "9200",
   "username": "admin",
-  "password": "admin"
+  "password": "admin",
+  "Index name prefix": "test"
 }
